@@ -250,7 +250,7 @@ function buildIcs() {
   const start = parisToUtc(ev.date, ev.heure_debut), end = parisToUtc(ev.date, ev.heure_fin || '23:00');
   return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//SOMA//Events//FR', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
     `UID:${state.eventId}@soma-events`, `DTSTAMP:${icsDate(new Date())}`, `DTSTART:${icsDate(start)}`, `DTEND:${icsDate(end)}`,
-    `SUMMARY:${icsText(ev.titre)}`, `LOCATION:${icsText(ev.lieu)}`, `DESCRIPTION:${icsText(personalize(ev.message, { prenom: '', nom: '', societe: '' }).replace(/^Bonjour ,\s*/, ''))}`,
+    `SUMMARY:${icsText(ev.titre)}`, `LOCATION:${icsText(ev.lieu)}`, `DESCRIPTION:${icsText(personalize(ev.message, { prenom: '', nom: '', societe: '' }).replace(/^Bonjour ,\s*(Je t'invite[^\n]*\n\s*)?/, ''))}`,
     'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
 }
 const mimeWord = s => `=?UTF-8?B?${b64encode(s)}?=`;
@@ -262,6 +262,7 @@ function buildEml(g) {
   const b1 = 'mix_' + Math.random().toString(36).slice(2), b2 = 'alt_' + Math.random().toString(36).slice(2);
   return [
     'X-Unsent: 1',
+    ...(ev.expediteur ? [`From: ${mimeWord(ev.organisateur || '')} <${ev.expediteur}>`] : []),
     `To: ${mimeWord(`${g.prenom} ${g.nom}`)} <${g.email || ''}>`,
     `Subject: ${mimeWord(personalize(ev.objet_mail || ev.titre, g))}`,
     'MIME-Version: 1.0',
@@ -495,7 +496,7 @@ function bindGuestDialog() {
 
 /* ---------------- Dialogue événement ---------------- */
 let creatingEvent = false;
-const EV_FIELDS = [['titre', 'e-titre'], ['date', 'e-date'], ['lieu', 'e-lieu'], ['heure_debut', 'e-debut'], ['heure_fin', 'e-fin'], ['organisateur', 'e-orga'], ['signature', 'e-signature'], ['objet_mail', 'e-objet'], ['message', 'e-message']];
+const EV_FIELDS = [['titre', 'e-titre'], ['date', 'e-date'], ['lieu', 'e-lieu'], ['heure_debut', 'e-debut'], ['heure_fin', 'e-fin'], ['organisateur', 'e-orga'], ['signature', 'e-signature'], ['expediteur', 'e-expediteur'], ['objet_mail', 'e-objet'], ['message', 'e-message']];
 function openEventDialog(create) {
   creatingEvent = create;
   $('#event-dlg-title').textContent = create ? 'Nouvel événement' : 'Événement & message d’invitation';
