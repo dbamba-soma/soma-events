@@ -158,6 +158,10 @@
     <label>Message d'invitation <small class="muted">— variables : {prenom} {nom} {societe} {signature}</small>
       <textarea id="e-message" rows="14"></textarea>
     </label>
+    <label>Pièces jointes de l'invitation <small class="muted">— ajoutées à chaque brouillon .eml (le bouton ✉️ ne peut pas joindre de fichier)</small>
+      <div id="e-pj-list" class="chips"></div>
+      <input id="e-pj" type="file" multiple accept=".pdf,.png,.jpg,.jpeg">
+    </label>
     <label class="check hidden" id="e-copy-wrap"><input type="checkbox" id="e-copy"> Reprendre la liste d'invités de l'événement courant (statuts remis à « À inviter »)</label>
     <div class="actions">
       <button class="btn" value="cancel" formnovalidate>Annuler</button>

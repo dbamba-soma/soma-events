@@ -184,3 +184,6 @@ dialog h2 { margin: 0; font-size: 20px; }
   .toolbar .spacer { display: none; }
   .toolbar select { flex: 1; }
 }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; font-weight: 500; }
+.chip { display: inline-flex; align-items: center; gap: 4px; background: var(--surface-2); border-radius: 999px; padding: 2px 4px 2px 10px; }

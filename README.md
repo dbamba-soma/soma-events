@@ -12,7 +12,7 @@ un token personnel. Sans token autorisé sur ce dépôt privé, la page n'affich
 - Enregistrement automatique (un commit par modification groupée dans le dépôt privé)
 - Export Excel, import Excel (fusion ou remplacement) et modèle d'import
 - Message d'invitation personnalisable par événement (`{prenom}`, `{nom}`, `{societe}`, `{signature}`)
-- Par invité : mail pré-rempli (mailto) ou brouillon Outlook `.eml` avec l'invitation agenda `.ics` ; zip de tous les brouillons
+- Par invité : mail pré-rempli (mailto) ou brouillon Outlook `.eml` avec les pièces jointes (PDF…) et l'invitation agenda `.ics` ; zip de tous les brouillons
 - « Copier la liste » formatée pour WhatsApp ou Teams (présents / peut-être / absents / sans réponse)
 - Bases de contacts (CSV/Excel) importées **localement dans le navigateur** (IndexedDB, jamais envoyées) :
   recherche à l'ajout d'un invité et complétion des emails manquants

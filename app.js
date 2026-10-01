@@ -53,6 +53,19 @@ async function gh(path, opts = {}) {
   if (!res.ok) { const err = new Error(`GitHub ${res.status}`); err.status = res.status; try { err.body = await res.json(); } catch {} throw err; }
   return res.status === 204 ? null : res.json();
 }
+const bytesToB64 = bytes => { let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(bin); };
+async function readRaw(path) {
+  const res = await fetch(`https://api.github.com/repos/${state.repo}/contents/${encodeURI(path)}`, {
+    headers: { Authorization: `Bearer ${state.token}`, Accept: 'application/vnd.github.raw', 'X-GitHub-Api-Version': '2022-11-28' }, cache: 'no-store',
+  });
+  if (!res.ok) { const err = new Error(`GitHub ${res.status} (${path})`); err.status = res.status; throw err; }
+  return new Uint8Array(await res.arrayBuffer());
+}
+async function writeRaw(path, bytes, message) {
+  let sha;
+  try { sha = (await gh(`/repos/${state.repo}/contents/${encodeURI(path)}`)).sha; } catch (e) { if (e.status !== 404) throw e; }
+  await gh(`/repos/${state.repo}/contents/${encodeURI(path)}`, { method: 'PUT', body: JSON.stringify({ message, content: bytesToB64(bytes), ...(sha ? { sha } : {}) }) });
+}
 async function readJson(path) {
   const r = await gh(`/repos/${state.repo}/contents/${encodeURI(path)}`);
   return { data: JSON.parse(b64decode(r.content)), sha: r.sha };
@@ -206,7 +219,7 @@ function bindTable() {
     const btn = e.target.closest('[data-a]'); if (!btn) return;
     const g = guestById(btn.closest('tr').dataset.id);
     if (btn.dataset.a === 'mail') openMailto(g);
-    if (btn.dataset.a === 'eml') downloadBlob(new Blob([buildEml(g)], { type: 'message/rfc822' }), emlName(g));
+    if (btn.dataset.a === 'eml') emlFor(g).then(eml => downloadBlob(new Blob([eml], { type: 'message/rfc822' }), emlName(g)));
     if (btn.dataset.a === 'edit') openGuestDialog(g);
     if (btn.dataset.a === 'del' && confirm(`Retirer ${g.prenom} ${g.nom} de la liste ?`)) {
       state.guests = state.guests.filter(x => x !== g); renderAll(); scheduleSave(`Suppression ${g.prenom} ${g.nom}`);
@@ -255,7 +268,22 @@ function buildIcs() {
 }
 const mimeWord = s => `=?UTF-8?B?${b64encode(s)}?=`;
 const wrap76 = s => s.replace(/.{1,76}/g, '$&\r\n');
-function buildEml(g) {
+const attCache = new Map();
+async function loadAttachments() {
+  const list = state.event.pieces_jointes || [];
+  return Promise.all(list.map(async pj => {
+    const key = `${state.eventId}/${pj.fichier}`;
+    if (!attCache.has(key)) attCache.set(key, readRaw(`events/${key}`).then(bytesToB64).catch(e => { attCache.delete(key); throw e; }));
+    return { nom: pj.nom || pj.fichier, type: pj.type || 'application/pdf', b64: await attCache.get(key) };
+  }));
+}
+const attHeaders = (nom, type) => [`Content-Type: ${type}; name="${mimeWord(nom)}"`,
+  `Content-Disposition: attachment; filename="${mimeWord(nom)}"; filename*=UTF-8''${encodeURIComponent(nom)}`, 'Content-Transfer-Encoding: base64', ''];
+async function emlFor(g) {
+  try { return buildEml(g, await loadAttachments()); }
+  catch (e) { toast('Pièce jointe introuvable : ' + e.message, 6000); throw e; }
+}
+function buildEml(g, atts = []) {
   const ev = state.event;
   const text = personalize(ev.message, g);
   const html = `<html><body style="font-family:Aptos,Calibri,Arial,sans-serif;font-size:11pt">${esc(text).replace(/\n/g, '<br>')}</body></html>`;
@@ -271,6 +299,7 @@ function buildEml(g) {
     `--${b2}`, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap76(b64encode(text)),
     `--${b2}`, 'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap76(b64encode(html)),
     `--${b2}--`, '',
+    ...atts.flatMap(a => [`--${b1}`, ...attHeaders(a.nom, a.type), wrap76(a.b64)]),
     `--${b1}`, 'Content-Type: text/calendar; charset=UTF-8; method=PUBLISH; name="invitation.ics"',
     'Content-Disposition: attachment; filename="invitation.ics"', 'Content-Transfer-Encoding: base64', '', wrap76(b64encode(buildIcs())),
     `--${b1}--`, '',
@@ -284,8 +313,10 @@ function downloadBlob(blob, name) {
 async function downloadAllEml() {
   const targets = state.guests.filter(g => g.email && g.statut !== 'Absent');
   if (!targets.length) return toast('Aucun invité avec email.');
+  toast('Préparation des brouillons…');
+  const atts = await loadAttachments().catch(e => { toast('Pièce jointe introuvable : ' + e.message, 6000); throw e; });
   const zip = new JSZip();
-  targets.forEach(g => zip.file(emlName(g), buildEml(g)));
+  targets.forEach(g => zip.file(emlName(g), buildEml(g, atts)));
   downloadBlob(await zip.generateAsync({ type: 'blob' }), `${state.eventId}_brouillons.zip`);
   toast(`${targets.length} brouillons générés (hors absents).`);
 }
@@ -495,7 +526,10 @@ function bindGuestDialog() {
 }
 
 /* ---------------- Dialogue événement ---------------- */
-let creatingEvent = false;
+let creatingEvent = false, dlgAtts = [];
+function renderDlgAtts() {
+  $('#e-pj-list').innerHTML = dlgAtts.map((a, i) => `<span class="chip">📎 ${esc(a.nom || a.fichier)} <button type="button" class="icon-btn" data-rm-pj="${i}" title="Retirer">✕</button></span>`).join('') || '<span class="muted">Aucune</span>';
+}
 const EV_FIELDS = [['titre', 'e-titre'], ['date', 'e-date'], ['lieu', 'e-lieu'], ['heure_debut', 'e-debut'], ['heure_fin', 'e-fin'], ['organisateur', 'e-orga'], ['signature', 'e-signature'], ['expediteur', 'e-expediteur'], ['objet_mail', 'e-objet'], ['message', 'e-message']];
 function openEventDialog(create) {
   creatingEvent = create;
@@ -503,13 +537,23 @@ function openEventDialog(create) {
   const src = state.event || {};
   for (const [k, id] of EV_FIELDS) $('#' + id).value = create && ['titre', 'date', 'objet_mail'].includes(k) ? '' : (src[k] || '');
   $('#e-copy-wrap').classList.toggle('hidden', !create); $('#e-copy').checked = false;
+  dlgAtts = create ? [] : [...(src.pieces_jointes || [])]; $('#e-pj').value = ''; renderDlgAtts();
   $('#dlg-event').showModal();
 }
 function slug(s) { return norm(s).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40); }
 async function saveEventDialog() {
   const data = Object.fromEntries(EV_FIELDS.map(([k, id]) => [k, $('#' + id).value]));
+  const newFiles = [...$('#e-pj').files];
   try {
     setSync('saving');
+    const evId = creatingEvent ? `${data.date}-${slug(data.titre)}` : state.eventId;
+    for (const f of newFiles) {
+      const fichier = slug(f.name.replace(/\.[^.]+$/, '')) + (f.name.match(/\.[^.]+$/)?.[0] || '').toLowerCase();
+      await writeRaw(`events/${evId}/${fichier}`, new Uint8Array(await f.arrayBuffer()), `${evId} : pièce jointe ${f.name}`);
+      attCache.delete(`${evId}/${fichier}`);
+      dlgAtts = dlgAtts.filter(a => a.fichier !== fichier).concat({ fichier, nom: f.name, type: f.type || 'application/octet-stream' });
+    }
+    data.pieces_jointes = dlgAtts;
     if (creatingEvent) {
       const id = `${data.date}-${slug(data.titre)}`;
       if (state.events.some(e => e.id === id)) return toast('Un événement avec cette date et ce titre existe déjà.', 4000);
@@ -535,6 +579,7 @@ function bindUi() {
   $('#event-select').onchange = e => openEvent(e.target.value).catch(err => toast(err.message));
   $('#btn-new-event').onclick = () => openEventDialog(true);
   $('#btn-edit-event').onclick = () => openEventDialog(false);
+  $('#e-pj-list').addEventListener('click', e => { const i = e.target.dataset.rmPj; if (i !== undefined) { dlgAtts.splice(+i, 1); renderDlgAtts(); } });
   $('#dlg-event').addEventListener('close', () => { if ($('#dlg-event').returnValue === 'ok') saveEventDialog(); });
   for (const [btn, pop] of [['#btn-share', '#share-pop'], ['#btn-more', '#more-pop']]) {
     $(btn).onclick = e => { e.stopPropagation(); const p = $(pop); closeMenus(p); p.classList.toggle('hidden'); };
