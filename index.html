@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>SOMA Events · Invités</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💿</text></svg>">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+
+<!-- ========== Connexion ========== -->
+<section id="login" class="login hidden">
+  <div class="login-card">
+    <div class="logo">💿 SOMA Events</div>
+    <h1>Suivi des invités</h1>
+    <p class="muted">Les données sont stockées dans un dépôt GitHub <strong>privé</strong>. Cette page publique ne contient aucune donnée : seul un token GitHub autorisé sur ce dépôt permet d'y accéder.</p>
+    <form id="login-form">
+      <label>Dépôt de données (owner/repo)
+        <input id="login-repo" required value="dbamba-soma/soma-events-data" autocomplete="off" spellcheck="false">
+      </label>
+      <label>Token GitHub (fine-grained)
+        <input id="login-token" type="password" required placeholder="github_pat_…" autocomplete="off" spellcheck="false">
+      </label>
+      <label class="check"><input id="login-remember" type="checkbox" checked> Se souvenir sur cet appareil</label>
+      <button class="btn primary" type="submit">Se connecter</button>
+      <p id="login-error" class="error hidden"></p>
+    </form>
+    <details class="help">
+      <summary>Créer un token</summary>
+      <ol>
+        <li>GitHub → Settings → Developer settings → <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Fine-grained tokens</a></li>
+        <li>Repository access : <em>Only select repositories</em> → le dépôt de données uniquement</li>
+        <li>Permissions → Repository → <strong>Contents : Read and write</strong></li>
+      </ol>
+      <p class="muted">Le token reste dans votre navigateur et n'est envoyé qu'à api.github.com.</p>
+    </details>
+  </div>
+</section>
+
+<!-- ========== Application ========== -->
+<div id="app" class="hidden">
+  <header class="topbar">
+    <div class="brand">💿 SOMA Events</div>
+    <div class="event-picker">
+      <select id="event-select" aria-label="Événement"></select>
+      <button class="btn ghost small" id="btn-new-event" title="Nouvel événement">＋ Événement</button>
+    </div>
+    <div class="topbar-right">
+      <span id="sync" class="sync" title="État de synchronisation">●</span>
+      <button class="btn ghost small" id="btn-logout">Déconnexion</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="event-head">
+      <div>
+        <h1 id="ev-title">…</h1>
+        <p id="ev-meta" class="muted"></p>
+      </div>
+      <button class="btn" id="btn-edit-event">✏️ Événement & message</button>
+    </section>
+
+    <section id="stats" class="stats"></section>
+
+    <section class="toolbar">
+      <input id="search" type="search" placeholder="Rechercher un nom, un email, une société…">
+      <select id="filter-statut"><option value="">Tous les statuts</option></select>
+      <select id="filter-societe"><option value="">Toutes les sociétés</option></select>
+      <div class="spacer"></div>
+      <button class="btn primary" id="btn-add">＋ Invité</button>
+      <div class="menu">
+        <button class="btn" id="btn-share">📋 Copier la liste</button>
+        <div class="menu-pop hidden" id="share-pop">
+          <button data-share="whatsapp">WhatsApp</button>
+          <button data-share="teams">Teams</button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="btn" id="btn-more">Excel & mails ▾</button>
+        <div class="menu-pop hidden" id="more-pop">
+          <button id="btn-export">⬇️ Exporter en Excel</button>
+          <button id="btn-import">⬆️ Importer une liste Excel…</button>
+          <button id="btn-template">📄 Modèle d'import Excel</button>
+          <hr>
+          <button id="btn-zip">✉️ Tous les brouillons .eml (zip)</button>
+          <hr>
+          <button id="btn-contacts">📇 Base de contacts…</button>
+        </div>
+      </div>
+      <input id="file-import" type="file" accept=".xlsx,.xls,.csv" hidden>
+    </section>
+
+    <div class="table-wrap">
+      <table id="table">
+        <thead>
+          <tr>
+            <th data-sort="nom">Nom</th>
+            <th data-sort="societe">Société</th>
+            <th data-sort="email" class="col-email">Email</th>
+            <th data-sort="statut">Statut</th>
+            <th data-sort="invitation_envoyee" title="Invitation envoyée">Envoyée</th>
+            <th>Commentaire</th>
+            <th class="col-actions"></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <p id="empty" class="empty hidden">Aucun invité ne correspond.</p>
+    </div>
+  </main>
+</div>
+
+<!-- ========== Modales ========== -->
+<dialog id="dlg-guest">
+  <form method="dialog" id="form-guest">
+    <h2 id="guest-title">Ajouter un invité</h2>
+    <label class="contact-search">Rechercher dans la base de contacts
+      <input id="g-search" autocomplete="off" placeholder="Nom, prénom ou email…">
+      <div id="g-suggest" class="suggest hidden"></div>
+      <small id="g-base-info" class="muted"></small>
+    </label>
+    <div class="grid2">
+      <label>Prénom<input id="g-prenom" required></label>
+      <label>Nom<input id="g-nom" required></label>
+      <label>Société<input id="g-societe" list="societes"></label>
+      <label>Email<input id="g-email" type="email"></label>
+      <label>Statut<select id="g-statut"></select></label>
+      <label>Département<input id="g-departement"></label>
+    </div>
+    <label>Commentaire<input id="g-commentaire"></label>
+    <datalist id="societes"></datalist>
+    <div class="actions">
+      <button class="btn" value="cancel" formnovalidate>Annuler</button>
+      <button class="btn primary" value="ok">Enregistrer</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-event">
+  <form method="dialog" id="form-event">
+    <h2 id="event-dlg-title">Événement</h2>
+    <div class="grid2">
+      <label class="span2">Titre<input id="e-titre" required></label>
+      <label>Date<input id="e-date" type="date" required></label>
+      <label>Lieu<input id="e-lieu"></label>
+      <label>Heure de début<input id="e-debut" type="time" value="18:00"></label>
+      <label>Heure de fin<input id="e-fin" type="time" value="23:00"></label>
+      <label>Organisateur<input id="e-orga"></label>
+      <label>Signature<input id="e-signature"></label>
+      <label class="span2">Objet du mail<input id="e-objet"></label>
+    </div>
+    <label>Message d'invitation <small class="muted">— variables : {prenom} {nom} {societe} {signature}</small>
+      <textarea id="e-message" rows="14"></textarea>
+    </label>
+    <label class="check hidden" id="e-copy-wrap"><input type="checkbox" id="e-copy"> Reprendre la liste d'invités de l'événement courant (statuts remis à « À inviter »)</label>
+    <div class="actions">
+      <button class="btn" value="cancel" formnovalidate>Annuler</button>
+      <button class="btn primary" value="ok">Enregistrer</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-share">
+  <form method="dialog">
+    <h2 id="share-title">Copier la liste</h2>
+    <div class="row">
+      <label class="check"><input type="checkbox" id="sh-comments" checked> Commentaires</label>
+      <label class="check"><input type="checkbox" id="sh-pending" checked> Sans réponse / à inviter</label>
+      <label class="check"><input type="checkbox" id="sh-company" checked> Société</label>
+    </div>
+    <textarea id="share-text" rows="18" readonly></textarea>
+    <div class="actions">
+      <button class="btn" value="cancel">Fermer</button>
+      <button class="btn primary" type="button" id="btn-copy">Copier</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-import">
+  <form method="dialog">
+    <h2>Importer une liste</h2>
+    <p id="import-summary"></p>
+    <div class="import-preview" id="import-preview"></div>
+    <label class="check"><input type="radio" name="imode" value="merge" checked> Fusionner (mise à jour par email ou prénom + nom, ajout des nouveaux)</label>
+    <label class="check"><input type="radio" name="imode" value="replace"> Remplacer toute la liste</label>
+    <div class="actions">
+      <button class="btn" value="cancel">Annuler</button>
+      <button class="btn primary" value="ok">Importer</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-contacts">
+  <form method="dialog">
+    <h2>Base de contacts</h2>
+    <p class="muted">Les bases de contacts restent <strong>uniquement dans ce navigateur</strong> (jamais envoyées sur GitHub). Elles servent à rechercher des invités et à compléter les emails. Colonnes reconnues : NOM, PRENOM, EMAIL, DEPARTEMENT_N2 (ou Société, Département…).</p>
+    <div id="contacts-list"></div>
+    <div class="grid2">
+      <label>Société de cette base<input id="c-societe" placeholder="ex. Generali"></label>
+      <label>Fichier CSV / Excel<input id="c-file" type="file" accept=".csv,.xlsx,.xls"></label>
+    </div>
+    <p id="c-status" class="muted"></p>
+    <div class="actions">
+      <button class="btn" type="button" id="btn-fill-emails">Compléter les emails manquants</button>
+      <button class="btn primary" value="cancel">Fermer</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast hidden"></div>
+</body>
+</html>
