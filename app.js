@@ -187,12 +187,12 @@ function renderTable() {
   const rows = filtered();
   $('#tbody').innerHTML = rows.map(g => `
     <tr data-id="${esc(g.id)}">
-      <td><span class="name">${esc(g.prenom)} ${esc(g.nom)}</span>${g.departement ? `<span class="dept">${esc(g.departement)}</span>` : ''}</td>
-      <td>${esc(g.societe)}</td>
+      <td class="c-name"><span class="name">${esc(g.prenom)} ${esc(g.nom)}</span>${g.departement ? `<span class="dept">${esc(g.departement)}</span>` : ''}</td>
+      <td class="c-soc">${esc(g.societe)}</td>
       <td class="col-email" title="${esc(g.email)}">${g.email ? esc(g.email) : '<span class="missing">manquant</span>'}</td>
-      <td><select class="statut ${STATUT_CLASS[g.statut] || ''}" data-f="statut">${STATUTS.map(s => `<option ${s === g.statut ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></td>
-      <td><input type="checkbox" data-f="invitation_envoyee" ${g.invitation_envoyee ? 'checked' : ''} aria-label="Invitation envoyée"></td>
-      <td><input class="comment" data-f="commentaire" value="${esc(g.commentaire)}" placeholder="—"></td>
+      <td class="c-statut"><select class="statut ${STATUT_CLASS[g.statut] || ''}" data-f="statut">${STATUTS.map(s => `<option ${s === g.statut ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></td>
+      <td class="c-sent"><label class="sent-label"><input type="checkbox" data-f="invitation_envoyee" ${g.invitation_envoyee ? 'checked' : ''} aria-label="Invitation envoyée"><span>Envoyée</span></label></td>
+      <td class="c-comment"><input class="comment" data-f="commentaire" value="${esc(g.commentaire)}" placeholder="Commentaire…"></td>
       <td class="col-actions">
         <button class="icon-btn" data-a="mail" title="Ouvrir un mail pré-rempli">✉️</button>
         <button class="icon-btn" data-a="eml" title="Télécharger le brouillon Outlook (.eml)">📥</button>

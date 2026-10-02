@@ -175,15 +175,83 @@ dialog h2 { margin: 0; font-size: 20px; }
   background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 10px; box-shadow: var(--shadow); max-width: calc(100% - 32px);
 }
 
+.sent-label { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; font-weight: 500; cursor: pointer; }
+.sent-label span, .show-sm { display: none; }
+
 @media (max-width: 760px) {
-  main { padding: 16px; }
-  .topbar { padding: 10px 16px; }
+  input, select, textarea { font-size: 16px; } /* évite le zoom auto sur iOS */
+  main { padding: 14px 16px 32px; }
+  .hide-sm { display: none; }
+  .show-sm { display: inline; }
+
+  /* Barre du haut : marque + actions, puis sélecteur d'événement pleine largeur */
+  .topbar { padding: 8px 16px; gap: 8px; }
+  .topbar-right { margin-left: auto; }
+  .event-picker { order: 3; flex-basis: 100%; }
+  .event-picker select { max-width: none; flex: 1; }
+  .sync { display: inline-block; width: 14px; overflow: hidden; white-space: nowrap; font-size: 14px; }
+
+  .event-head { gap: 10px; }
+  .event-head h1 { font-size: 21px; }
+  .event-head .btn { width: 100%; }
+
+  /* Compteurs : bandeau compact défilant */
+  .stats { display: flex; overflow-x: auto; gap: 8px; margin: 14px -16px; padding: 0 16px 4px; scrollbar-width: none; }
+  .stats::-webkit-scrollbar { display: none; }
+  .stat { flex: 0 0 auto; min-width: 92px; padding: 8px 12px; }
+  .stat b { font-size: 20px; }
+  .stat span { font-size: 11px; }
+
+  /* Barre d'outils */
+  .toolbar { gap: 8px; }
+  .toolbar #search { flex: 1 1 100%; }
+  .toolbar select { flex: 1 1 calc(50% - 4px); width: auto; min-width: 0; }
+  .toolbar .spacer { display: none; }
+  .toolbar > .btn, .toolbar > .menu { flex: 1 1 0; }
+  .toolbar .menu > .btn { width: 100%; }
+  .toolbar .btn { padding: 10px 8px; font-size: 13px; }
+
+  /* Menus en feuille ancrée en bas d'écran */
+  .menu-pop { position: fixed; left: 12px; right: 12px; bottom: 12px; top: auto; min-width: 0; padding: 8px; z-index: 50; box-shadow: 0 -10px 40px rgba(0,0,0,.25); }
+  .menu-pop button { padding: 13px 12px; font-size: 15px; }
+
+  /* Tableau → cartes */
+  .table-wrap { background: transparent; border: 0; overflow: visible; }
+  #table thead { display: none; }
+  #table, #table tbody { display: block; }
+  #table tr {
+    display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 12px 10px; margin-bottom: 10px;
+  }
+  #table tbody tr:hover { background: var(--surface); }
+  #table td { display: block; padding: 0; border: 0; min-width: 0; }
+  #table td.c-name { grid-column: 1; grid-row: 1; }
+  #table td.col-actions { grid-column: 2; grid-row: 1 / span 3; align-self: start; display: flex; flex-wrap: wrap; justify-content: flex-end; max-width: 96px; }
+  #table td.c-soc { grid-column: 1; grid-row: 2; font-size: 13px; color: var(--muted); }
+  #table td.col-email { display: block; grid-column: 1; grid-row: 3; overflow: hidden; text-overflow: ellipsis; max-width: none; font-size: 13px; color: var(--muted); }
+  #table td.c-statut { grid-column: 1; grid-row: 4; }
+  #table td.c-sent { grid-column: 2; grid-row: 4; justify-self: end; }
+  #table td.c-comment { grid-column: 1 / -1; grid-row: 5; }
+  #table td .dept { font-size: 12px; }
+  .sent-label span { display: inline; font-size: 13px; color: var(--muted); }
+  td input[type=checkbox] { width: 22px; height: 22px; }
+  select.statut { padding: 7px 12px; font-size: 14px; }
+  td input.comment { border-color: var(--line); background: var(--surface-2); padding: 8px 10px; }
+  .icon-btn { min-width: 40px; min-height: 40px; font-size: 18px; }
+  .empty { background: var(--surface); border-radius: var(--radius); }
+
+  /* Fenêtres : plein écran, contenu défilant */
+  dialog { width: 100%; max-width: 100%; max-height: 100dvh; height: auto; margin: auto 0 0; border-radius: 16px 16px 0 0; }
+  dialog form { padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); max-height: 92dvh; overflow-y: auto; }
   .grid2 { grid-template-columns: 1fr; }
   .span2 { grid-column: auto; }
-  .col-email { display: none; }
-  .toolbar .spacer { display: none; }
-  .toolbar select { flex: 1; }
+  .actions { position: sticky; bottom: 0; background: var(--surface); padding-top: 8px; }
+  .actions .btn { flex: 1; padding: 12px; }
+  .suggest { top: 70px; }
+  .login-card { padding: 22px 18px; }
 }
+
 
 .chips { display: flex; flex-wrap: wrap; gap: 6px; font-weight: 500; }
 .chip { display: inline-flex; align-items: center; gap: 4px; background: var(--surface-2); border-radius: 999px; padding: 2px 4px 2px 10px; }
