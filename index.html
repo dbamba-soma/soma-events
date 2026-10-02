@@ -6,10 +6,10 @@
   <meta name="robots" content="noindex, nofollow">
   <title>SOMA Events · Invités</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💿</text></svg>">
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=5">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
-  <script src="app.js?v=4" defer></script>
+  <script src="app.js?v=5" defer></script>
 </head>
 <body>
 
@@ -177,6 +177,7 @@
       <label class="check"><input type="checkbox" id="sh-comments" checked> Commentaires</label>
       <label class="check"><input type="checkbox" id="sh-pending" checked> Sans réponse / à inviter</label>
       <label class="check"><input type="checkbox" id="sh-company" checked> Société</label>
+      <label class="check"><input type="checkbox" id="sh-dept" checked> Département</label>
     </div>
     <textarea id="share-text" rows="18" readonly></textarea>
     <div class="actions">
@@ -203,7 +204,7 @@
 <dialog id="dlg-contacts">
   <form method="dialog">
     <h2>Base de contacts</h2>
-    <p class="muted">Les bases de contacts restent <strong>uniquement dans ce navigateur</strong> (jamais envoyées sur GitHub). Elles servent à rechercher des invités et à compléter les emails. Colonnes reconnues : NOM, PRENOM, EMAIL, DEPARTEMENT_N2 (ou Société, Département…).</p>
+    <p class="muted">Les bases de contacts restent <strong>uniquement dans ce navigateur</strong> (jamais envoyées sur GitHub). Elles servent à rechercher des invités et à compléter les emails. Colonnes reconnues : NOM, PRENOM, EMAIL, DEPARTEMENT_N1 à N4 (le niveau le plus fin est retenu).</p>
     <div id="contacts-list"></div>
     <div class="grid2">
       <label>Société de cette base<input id="c-societe" placeholder="ex. Generali"></label>

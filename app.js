@@ -325,10 +325,13 @@ async function downloadAllEml() {
 function buildShareText(mode) {
   const wa = mode === 'whatsapp';
   const B = s => wa ? `*${s}*` : `**${s}**`;
-  const withComments = $('#sh-comments').checked, withPending = $('#sh-pending').checked, withCo = $('#sh-company').checked;
+  const withComments = $('#sh-comments').checked, withPending = $('#sh-pending').checked, withCo = $('#sh-company').checked, withDept = $('#sh-dept').checked;
   const ev = state.event;
   const by = s => state.guests.filter(g => s.includes(g.statut)).sort((a, b) => norm(a.nom).localeCompare(norm(b.nom)));
-  const line = g => `• ${g.prenom} ${g.nom}${withCo && g.societe ? ` (${g.societe})` : ''}${withComments && g.commentaire ? ` — ${g.commentaire}` : ''}`;
+  const line = g => {
+    const info = [withCo && g.societe, withDept && g.departement].filter(Boolean).join(' · ');
+    return `• ${g.prenom} ${g.nom}${info ? ` (${info})` : ''}${withComments && g.commentaire ? ` — ${g.commentaire}` : ''}`;
+  };
   const groups = [
     ['✅', 'Présents', by(['Confirmé'])],
     ['🤔', 'Peut-être', by(['Peut-être'])],
@@ -372,7 +375,7 @@ const ALIASES = {
   nom: ['nom', 'name', 'last name', 'lastname', 'surname', 'nom de famille'],
   email: ['email', 'e mail', 'mail', 'adresse mail', 'courriel'],
   societe: ['societe', 'client', 'entreprise', 'company', 'organisation'],
-  departement: ['departement', 'departement n2', 'direction', 'service', 'department'],
+  departement: ['departement', 'departement n4', 'departement n3', 'departement n2', 'direction', 'service', 'department'],
   statut: ['statut', 'status', 'etat'],
   commentaire: ['commentaire', 'commentaires', 'comment', 'remarque', 'notes'],
   invitation_envoyee: ['invitation envoyee', 'envoyee', 'invite le'],
@@ -464,13 +467,17 @@ async function importContacts(file, societe) {
       if (n === 'prenom' || n === 'first name') o.prenom = String(val).trim();
       else if (n === 'nom' || n === 'last name') o.nom = String(val).trim();
       else if (/^(e )?mail|^email/.test(n)) o.email = String(val).trim();
-      else if (n === 'departement n2' || (!o.departement && /departement|direction|service/.test(n))) o.departement = String(val).trim();
+      else if (/departement|direction|service/.test(n) && String(val).trim()) {
+        // On garde le niveau le plus fin disponible (N4 > N3 > N2 > N1 / colonne simple)
+        const lvl = +(n.match(/n(\d)$/)?.[1] || 0);
+        if (o._lvl === undefined || lvl > o._lvl) { o.departement = String(val).trim(); o._lvl = lvl; }
+      }
     }
     return o;
   }).filter(o => o.nom && o.email);
   if (!rows.length) { $('#c-status').textContent = 'Aucun contact reconnu (colonnes NOM, PRENOM, EMAIL attendues).'; return; }
   const title = s => s.toLowerCase().replace(/(^|[\s'’-])\p{L}/gu, m => m.toUpperCase());
-  rows.forEach(r => { r.prenom = title(r.prenom || ''); r.departement = r.departement ? title(r.departement) : ''; });
+  rows.forEach(r => { r.prenom = title(r.prenom || ''); r.departement = r.departement || ''; delete r._lvl; });
   await contactsDb.put({ societe, date: Date.now(), rows });
   $('#c-status').textContent = `${rows.length.toLocaleString('fr-FR')} contacts importés pour ${societe}.`;
   await renderContactsDialog();
@@ -586,7 +593,7 @@ function bindUi() {
   }
   document.addEventListener('click', () => closeMenus());
   $$('[data-share]').forEach(b => b.onclick = () => openShare(b.dataset.share));
-  ['#sh-comments', '#sh-pending', '#sh-company'].forEach(s => $(s).onchange = () => { $('#share-text').value = buildShareText(state.shareMode); });
+  ['#sh-comments', '#sh-pending', '#sh-company', '#sh-dept'].forEach(s => $(s).onchange = () => { $('#share-text').value = buildShareText(state.shareMode); });
   $('#btn-copy').onclick = async () => {
     try { await navigator.clipboard.writeText($('#share-text').value); } catch { $('#share-text').select(); document.execCommand('copy'); }
     toast('Copié ! Collez-le dans ' + (state.shareMode === 'whatsapp' ? 'WhatsApp' : 'Teams') + '.');
